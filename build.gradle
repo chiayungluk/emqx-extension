@@ -1,0 +1,108 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.0.0'
+	id 'io.spring.dependency-management' version '1.1.0'
+	id 'com.google.protobuf' version '0.8.18'
+	id 'maven-publish'
+}
+
+group = 'io.chiayungluk'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenLocal()
+	mavenCentral()
+	maven {
+		url = uri("https://maven.pkg.github.com/chiayungluk/im-auth")
+		credentials {
+			username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+			password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+		}
+	}
+}
+
+def grpcVersion = '1.51.0' // CURRENT_GRPC_VERSION
+def protobufVersion = '3.21.7'
+def protocVersion = protobufVersion
+def imAuthVersion= '0.0.1-SNAPSHOT'
+def jwtVersion = '4.2.1'
+def tomcatAnnotationsVersion = '6.0.53'
+
+dependencies {
+//	implementation 'io.chiayungluk.im:im-auth-client:0.0.1-SNAPSHOT'
+	implementation "io.chiayungluk.im:im-auth-client:${imAuthVersion}"
+
+	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	compileOnly 'org.projectlombok:lombok'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
+	implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+	implementation "io.grpc:grpc-stub:${grpcVersion}"
+	compileOnly "org.apache.tomcat:annotations-api:${tomcatAnnotationsVersion}" // necessary for Java 9+
+	testImplementation "io.grpc:grpc-testing:${grpcVersion}"
+
+	implementation "com.auth0:java-jwt:${jwtVersion}"
+}
+
+protobuf {
+	protoc {
+		artifact = "com.google.protobuf:protoc:${protocVersion}"
+	}
+	plugins {
+		grpc {
+			artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+		}
+	}
+	generateProtoTasks {
+		all()*.plugins {
+			grpc {}
+		}
+	}
+}
+
+// Inform IDEs like IntelliJ IDEA, Eclipse or NetBeans about the generated code.
+sourceSets {
+	main {
+		java {
+			srcDirs 'build/generated/source/proto/main/grpc'
+			srcDirs 'build/generated/source/proto/main/java'
+		}
+	}
+}
+
+
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+tasks.named('bootBuildImage') {
+	builder = 'paketobuildpacks/builder:base'
+	environment = [
+			"BP_JVM_VERSION"              : "17",
+			"BPE_DELIM_JAVA_TOOL_OPTIONS" : " ",
+			"BPE_APPEND_JAVA_TOOL_OPTIONS": "-XX:+HeapDumpOnOutOfMemoryError",
+	]
+	imageName = "chiayungluk/emqx-extension:${project.version}"
+	tags = ['chiayungluk/emqx-extension:latest']
+	docker {
+		publishRegistry {
+			url = "https://hub.docker.com/repository/docker"
+			username = project.findProperty("DOCKERHUB_USERNAME") ?: System.getenv("DOCKERHUB_USERNAME");
+			password = project.findProperty("DOCKERHUB_TOKEN") ?: System.getenv("DOCKERHUB_TOKEN")
+		}
+	}
+}

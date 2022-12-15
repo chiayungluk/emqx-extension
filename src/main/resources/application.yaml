@@ -1,0 +1,26 @@
+server:
+  shutdown: graceful
+
+app:
+  port: 50051
+  imStoreUri: "localhost:50052"
+  imAuthUri: "localhost:50053"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  level:
+    io.chiayungluk: debug
